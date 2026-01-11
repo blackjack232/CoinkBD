@@ -1,0 +1,23 @@
+-- Insertar paises
+INSERT INTO coink.pais (nombre, codigo) VALUES 
+('Colombia', 'COL'),
+('México', 'MEX'),
+('Argentina', 'ARG');
+
+-- Insertar departamentos de Colombia
+INSERT INTO coink.departamento (nombre, pais_id) VALUES 
+('Antioquia', 1),
+('Cundinamarca', 1),
+('Valle del Cauca', 1);
+
+-- Insertar municipios de Antioquia
+INSERT INTO coink.municipio (nombre, departamento_id) VALUES 
+('Medellín', 1),
+('Envigado', 1),
+('Bello', 1);
+
+-- Insertar municipios de Cundinamarca
+INSERT INTO coink.municipio (nombre, departamento_id) VALUES 
+('Bogotá', 2),
+('Soacha', 2),
+('Chía', 2);

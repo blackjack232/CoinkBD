@@ -1,0 +1,63 @@
+-- Tabla de paises
+
+
+CREATE TABLE coink.pais (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    codigo VARCHAR(3) NOT NULL UNIQUE,
+    estado BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- Tabla de departamentos
+CREATE TABLE coink.departamento (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    pais_id INT NOT NULL,
+    estado BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (pais_id) REFERENCES pais(id),
+    UNIQUE(nombre, pais_id)
+);
+
+
+
+
+-- Tabla de municipios
+CREATE TABLE coink.municipio (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    departamento_id INT NOT NULL,
+    estado BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (departamento_id) REFERENCES departamento(id),
+    UNIQUE(nombre, departamento_id)
+);
+
+
+-- Tabla de usuario
+
+CREATE TABLE coink.usuario (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(200) NOT NULL,
+    telefono VARCHAR(20) NOT NULL,
+    pais_id INT NOT NULL,
+    departamento_id INT NOT NULL,
+    municipio_id INT NOT NULL,
+    direccion TEXT NOT NULL,
+    estado BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (pais_id) REFERENCES pais(id),
+    FOREIGN KEY (departamento_id) REFERENCES departamento(id),
+    FOREIGN KEY (municipio_id) REFERENCES municipio(id)
+);
+
+
+-- Indices
+CREATE INDEX idx_usuario_pais ON coink.usuario(pais_id);
+CREATE INDEX idx_usuario_departamento ON coink.usuario(departamento_id);
+CREATE INDEX idx_usuario_municipio ON coink.usuario(municipio_id);
+CREATE INDEX idx_departamento_pais ON coink.departamento(pais_id);
+CREATE INDEX idx_municipio_departamento ON coink.municipio(departamento_id);

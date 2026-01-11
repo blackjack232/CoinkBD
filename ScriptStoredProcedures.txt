@@ -1,0 +1,210 @@
+
+
+-- Procedimiento: Crear usuario
+CREATE OR REPLACE PROCEDURE coink.sp_crear_usuario(
+    IN p_nombre VARCHAR,
+    IN p_telefono VARCHAR,
+    IN p_pais_id BIGINT,          -- Cambio a BIGINT
+    IN p_departamento_id BIGINT,  -- Cambio a BIGINT
+    IN p_municipio_id BIGINT,     -- Cambio a BIGINT
+    IN p_direccion TEXT,
+    INOUT p_id BIGINT DEFAULT NULL,  -- Cambio a BIGINT
+    INOUT p_mensaje VARCHAR DEFAULT NULL,
+    INOUT p_estado BOOLEAN DEFAULT NULL
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Validar que el pais existe y esta en estado activo
+    IF NOT EXISTS (SELECT 1 FROM coink.pais WHERE id = p_pais_id AND estado = TRUE) THEN
+        p_id := 0;
+        p_mensaje := 'El pais no existe o no esta activo';
+        p_estado := FALSE;
+        RETURN;
+    END IF;
+    
+    -- Validar que el departamento pertenece al pais
+    IF NOT EXISTS (
+        SELECT 1 FROM coink.departamento
+        WHERE id = p_departamento_id 
+        AND pais_id = p_pais_id 
+        AND estado = TRUE
+    ) THEN
+        p_id := 0;
+        p_mensaje := 'El departamento no pertenece a este pais';
+        p_estado := FALSE;
+        RETURN;
+    END IF;
+    
+    -- Validar que el municipio pertenece al departamento
+    IF NOT EXISTS (
+        SELECT 1 FROM coink.municipio 
+        WHERE id = p_municipio_id 
+        AND departamento_id = p_departamento_id 
+        AND estado = TRUE
+    ) THEN
+        p_id := 0;
+        p_mensaje := 'El municipio no pertenece a este departamento';
+        p_estado := FALSE;
+        RETURN;
+    END IF;
+    
+    -- Insertar usuario
+    INSERT INTO coink.usuario (nombre, telefono, pais_id, departamento_id, municipio_id, direccion)
+    VALUES (p_nombre, p_telefono, p_pais_id, p_departamento_id, p_municipio_id, p_direccion)
+    RETURNING id INTO p_id;  -- Cambié usuario.id por id
+    
+    p_mensaje := 'Usuario creado exitosamente';
+    p_estado := TRUE;
+END;
+$$;
+
+-- Procedimiento: Obtener usuario por ID
+-- DROP PROCEDURE coink.sp_obtener_usuario_by_id(in int8, inout refcursor);
+
+CREATE OR REPLACE PROCEDURE coink.sp_obtener_usuario_by_id(IN p_usuario_id bigint, INOUT resultado refcursor DEFAULT 'usuario_cursor'::refcursor)
+ LANGUAGE plpgsql
+AS $procedure$
+DECLARE
+    v_existe BOOLEAN;
+BEGIN
+    -- Validar que el usuario existe
+    SELECT EXISTS(
+        SELECT 1 FROM coink.usuario WHERE id = p_usuario_id
+    ) INTO v_existe;
+    
+    IF NOT v_existe THEN
+        RAISE EXCEPTION 'El usuario con ID % no existe', p_usuario_id;
+    END IF;
+    
+    -- Validar que el usuario está activo
+    SELECT EXISTS(
+        SELECT 1 FROM coink.usuario WHERE id = p_usuario_id AND estado = TRUE
+    ) INTO v_existe;
+    
+    IF NOT v_existe THEN
+        RAISE EXCEPTION 'El usuario con ID % existe pero está inactivo', p_usuario_id;
+    END IF;
+    
+    -- Abrir cursor con los datos del usuario
+    OPEN resultado FOR
+    SELECT
+        u.id,
+        u.nombre,
+        u.telefono,
+        p.nombre as pais,
+        d.nombre as departamento,
+        m.nombre as municipio,
+        u.direccion,
+        u.fecha_creacion
+    FROM coink.usuario u
+    INNER JOIN coink.pais p ON u.pais_id = p.id
+    INNER JOIN coink.departamento d ON u.departamento_id = d.id
+    INNER JOIN coink.municipio m ON u.municipio_id = m.id
+    WHERE u.id = p_usuario_id AND u.estado = TRUE;
+    
+END;
+$procedure$
+;
+
+-- Procedimiento: Obtener países
+CREATE OR REPLACE PROCEDURE coink.sp_obtener_pais(
+    INOUT resultado REFCURSOR DEFAULT 'paises_cursor'
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Validar que existen países en el sistema
+    IF NOT EXISTS (SELECT 1 FROM coink.pais WHERE estado = TRUE) THEN
+        RAISE EXCEPTION 'No hay países disponibles en el sistema';
+    END IF;
+    
+    -- Abrir cursor con los países
+    OPEN resultado FOR 
+    SELECT p.id, p.nombre, p.codigo, p.estado, p.fecha_creacion
+    FROM coink.pais p
+    WHERE p.estado = TRUE
+    ORDER BY p.nombre;
+END;
+$$;
+
+
+-- Procedimiento: Obtener departamentos por pais
+-- DROP PROCEDURE coink.sp_obtener_departamentos_by_pais(in int4, inout refcursor);
+-- Eliminar el procedimiento actual
+DROP PROCEDURE IF EXISTS coink.sp_obtener_departamentos_by_pais;
+
+-- Crear procedimiento con validaciones
+CREATE OR REPLACE PROCEDURE coink.sp_obtener_departamentos_by_pais(
+    IN p_pais_id bigint,
+    INOUT resultado REFCURSOR DEFAULT 'departamentos_cursor'
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Validar que el país existe
+    IF NOT EXISTS (SELECT 1 FROM coink.pais WHERE id = p_pais_id) THEN
+        RAISE EXCEPTION 'El país con ID % no existe', p_pais_id
+            USING ERRCODE = 'P0001';
+    END IF;
+    
+    -- Validar que el país está activo
+    IF NOT EXISTS (SELECT 1 FROM coink.pais WHERE id = p_pais_id AND estado = TRUE) THEN
+        RAISE EXCEPTION 'El país con ID % existe pero está inactivo', p_pais_id
+            USING ERRCODE = 'P0002';
+    END IF;
+    
+    -- Abrir cursor con los departamentos
+    OPEN resultado FOR
+    SELECT d.id, d.nombre, d.pais_id
+    FROM coink.departamento d
+    WHERE d.pais_id = p_pais_id AND d.estado = TRUE
+    ORDER BY d.nombre;
+
+END;
+$$;
+
+-- Procedimiento: Obtener municipios por departamento
+-- DROP PROCEDURE coink.sp_obtener_municipios_by_departamento(in int4, inout refcursor);
+
+CREATE OR REPLACE PROCEDURE coink.sp_obtener_municipios_by_departamento(
+    IN p_departamento_id bigint,
+    INOUT resultado REFCURSOR DEFAULT 'municipios_cursor'
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_existe BOOLEAN;
+BEGIN
+    -- Validar que el departamento existe
+    SELECT EXISTS(
+        SELECT 1 FROM coink.departamento WHERE id = p_departamento_id
+    ) INTO v_existe;
+    
+    IF NOT v_existe THEN
+        RAISE EXCEPTION 'El departamento con ID % no existe', p_departamento_id
+            USING ERRCODE = 'P0001';
+    END IF;
+    
+    -- Validar que el departamento está activo
+    SELECT EXISTS(
+        SELECT 1 FROM coink.departamento 
+        WHERE id = p_departamento_id AND estado = TRUE
+    ) INTO v_existe;
+    
+    IF NOT v_existe THEN
+        RAISE EXCEPTION 'El departamento con ID % existe pero está inactivo', p_departamento_id
+            USING ERRCODE = 'P0002';
+    END IF;
+    
+    -- Abrir cursor con los municipios
+    OPEN resultado FOR 
+    SELECT m.id, m.nombre, m.departamento_id
+    FROM coink.municipio m
+    WHERE m.departamento_id = p_departamento_id AND m.estado = TRUE
+    ORDER BY m.nombre;
+    
+END;
+$$;
+
+
