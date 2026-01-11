@@ -1,0 +1,39 @@
+psql -U postgres
+
+CREATE DATABASE coinkbd
+
+
+CREATE USER coinkuser WITH PASSWORD 'password123';
+
+-- 1. Crear el esquema
+CREATE SCHEMA coink;
+
+-- 2. Dar permisos completos sobre el esquema
+GRANT ALL ON SCHEMA coink TO coinkuser;
+
+-- 3. Dar permisos para crear objetos
+GRANT CREATE ON SCHEMA coink TO coinkuser;
+
+-- 4. Dar permisos sobre todas las tablas existentes en el esquema
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA coink TO coinkuser;
+
+-- 5. Dar permisos sobre todas las secuencias existentes
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA coink TO coinkuser;
+
+-- 6. Dar permisos sobre funciones existentes
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA coink TO coinkuser;
+
+-- 7. Configurar permisos por defecto para tablas futuras
+ALTER DEFAULT PRIVILEGES IN SCHEMA coink 
+GRANT ALL ON TABLES TO coinkuser;
+
+-- 8. Configurar permisos por defecto para secuencias futuras
+ALTER DEFAULT PRIVILEGES IN SCHEMA coink 
+GRANT ALL ON SEQUENCES TO coinkuser;
+
+-- 9. Configurar permisos por defecto para funciones futuras
+ALTER DEFAULT PRIVILEGES IN SCHEMA coink 
+GRANT ALL ON FUNCTIONS TO coinkuser;
+
+-- 10. Hacer que el esquema sea el predeterminado para coinkuser
+ALTER USER coinkuser SET search_path TO coink, public;
